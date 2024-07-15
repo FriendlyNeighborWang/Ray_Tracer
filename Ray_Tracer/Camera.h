@@ -88,7 +88,9 @@ private:
 		//因为浮点数的精度影响，交点很有可能不够精确，这样的点在球面下（球内）时有可能导致
 		//光线在内部与球面相交，时间很短，做法是忽略那些发生时间过短的相交，能够有效解决shadow acne问题
 		if (world.hit(r, interval(0.001, infinity), rec)) {
-			vec3 direction = random_on_hemisphere(rec.normal);
+			//将反射光线的逻辑修改为Lambertian Reflection，使漫反射得到的光线更加接近法线
+			vec3 direction = rec.normal + random_unit_vector();
+			//这个0.5表示的是材质吸收光线的能力，越小代表越多光会被反射吸收
 			return 0.5 * ray_color(ray(rec.p, direction), depth-1, world);
 		}
 		vec3 unit_direction = unit_vector(r.direction());
