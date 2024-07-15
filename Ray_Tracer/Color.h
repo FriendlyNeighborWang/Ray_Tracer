@@ -1,0 +1,21 @@
+#pragma once
+#include "Vec3.h"
+#include "Interval.h"
+
+
+
+using color = vec3;
+
+void write_color(std::ostream& out, const color& pixel_color) {
+	auto r = pixel_color.x();
+	auto g = pixel_color.y();
+	auto b = pixel_color.z();
+
+	//·ÀÖ¹Òç³ö
+	static const interval intensity(0.000, 0.999);
+	int rbyte = int(256 * intensity.clamp(r));
+	int gbyte = int(256 * intensity.clamp(g));
+	int bbyte = int(256 * intensity.clamp(b));
+
+	out << rbyte << ' ' << gbyte << ' ' << bbyte << '\n';
+}
