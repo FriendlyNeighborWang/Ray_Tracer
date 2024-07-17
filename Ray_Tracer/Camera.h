@@ -1,6 +1,7 @@
 #pragma once
 #include "rtweekend.h"
 #include "Hittable.h"
+#include "Material.h"
 #include <fstream>
 
 class camera {
@@ -9,6 +10,12 @@ public:
 	int image_width = 100;
 	int samples_per_pixel = 10;
 	int max_depth = 10;
+
+	double vfov = 90;
+	point3 lookfrom = point3(0, 0, 0);  //相机所在点
+	point3 lookat = point3(0, 0, -1);  //相机观察方向(也是屏幕中心点)
+	vec3 vup = vec3(0, 1, 0);  //全局“上”方向向量
+
 
 	void render(const hittable& world, std::ofstream& out) {
 		initialize();
@@ -37,6 +44,7 @@ private:
 	point3 pixel00_loc;
 	vec3 pixel_delta_u;
 	vec3 pixel_delta_v;
+	vec3 u, v, w;
 
 	void initialize() {
 		//计算图像长宽
@@ -45,22 +53,32 @@ private:
 		
 		pixel_samples_scale = 1.0 / samples_per_pixel;
 
+		center = lookfrom;  //相机中心
+
 		//相机
-		auto focal_length = 1.0;  //焦距
-		auto viewport_height = 2.0;  //视口高
-		auto viewport_width = viewport_height * (double(image_width) / image_height);
-		center = point3(0, 0, 0);  //相机中心
+		auto focal_length = (lookfrom - lookat).length();  //焦距
+		auto theta = degrees_to_radians(vfov);
+		auto h = tan(theta / 2);
+		auto viewport_height = 2 * h * focal_length;  //视口高
+		// auto viewport_width = viewport_height * (double(image_width) / image_height);
+		auto viewport_width = viewport_height * aspect_ratio;
+		
+
+		//相对相机自身观察向量
+		w = unit_vector(lookfrom - lookat);
+		u = unit_vector(cross(vup, w));
+		v = cross(w, u);
 
 		//视口
-		auto viewport_u = vec3(viewport_width, 0, 0);
-		auto viewport_v = vec3(0, -viewport_height, 0);
+		auto viewport_u = viewport_width * u;
+		auto viewport_v = viewport_width * -v;
+
 		pixel_delta_u = viewport_u / image_width;
 		pixel_delta_v = viewport_v / image_height;
 
-		auto viewport_upper_left = center - vec3(0, 0, focal_length) - viewport_u / 2 - viewport_v / 2;
+		auto viewport_upper_left = center - (focal_length * w) - viewport_u / 2 - viewport_v / 2;
 		pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 		
-
 	}
 
 	ray get_ray(int i, int j) const {
@@ -88,10 +106,11 @@ private:
 		//因为浮点数的精度影响，交点很有可能不够精确，这样的点在球面下（球内）时有可能导致
 		//光线在内部与球面相交，时间很短，做法是忽略那些发生时间过短的相交，能够有效解决shadow acne问题
 		if (world.hit(r, interval(0.001, infinity), rec)) {
-			//将反射光线的逻辑修改为Lambertian Reflection，使漫反射得到的光线更加接近法线
-			vec3 direction = rec.normal + random_unit_vector();
-			//这个0.5表示的是材质吸收光线的能力，越小代表越多光会被反射吸收
-			return 0.5 * ray_color(ray(rec.p, direction), depth-1, world);
+			ray scattered;
+			color attenuation;
+			if (rec.mat->scatter(r, rec, attenuation, scattered))
+				return attenuation * ray_color(scattered, depth - 1, world);
+			return color(0, 0, 0);
 		}
 		vec3 unit_direction = unit_vector(r.direction());
 		auto a = 0.5 * (unit_direction.y() + 1.0);
