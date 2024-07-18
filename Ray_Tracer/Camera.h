@@ -60,8 +60,7 @@ private:
 		auto theta = degrees_to_radians(vfov);
 		auto h = tan(theta / 2);
 		auto viewport_height = 2 * h * focal_length;  //视口高
-		// auto viewport_width = viewport_height * (double(image_width) / image_height);
-		auto viewport_width = viewport_height * aspect_ratio;
+		auto viewport_width = viewport_height * (double(image_width) / image_height);
 		
 
 		//相对相机自身观察向量
@@ -71,7 +70,7 @@ private:
 
 		//视口
 		auto viewport_u = viewport_width * u;
-		auto viewport_v = viewport_width * -v;
+		auto viewport_v = viewport_height * -v;
 
 		pixel_delta_u = viewport_u / image_width;
 		pixel_delta_v = viewport_v / image_height;
